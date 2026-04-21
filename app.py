@@ -3,38 +3,54 @@ import pandas as pd
 
 st.set_page_config(layout="wide")
 
-# ---------- CUSTOM CSS ----------
+# ---------- LOAD DATA ----------
+@st.cache_data
+def load_data():
+    return pd.read_csv("sample_skus.csv")
+
+df = load_data()
+
+# ---------- CUSTOM UI ----------
 st.markdown("""
 <style>
-body {
-    background-color: #f5f7fb;
-}
+body { background-color: #f5f7fb; font-family: Arial; }
 
 .header {
     background-color: #0b2c5f;
-    padding: 15px;
     color: white;
+    padding: 14px;
     font-size: 22px;
     font-weight: bold;
 }
 
-.sub-header {
-    font-size: 18px;
-    font-weight: bold;
-    margin-top: 10px;
-}
-
 .card {
-    background-color: white;
+    background: white;
     padding: 15px;
     border-radius: 10px;
     box-shadow: 0px 2px 6px rgba(0,0,0,0.1);
 }
 
-.gold-header {
+.section-title {
+    font-size: 18px;
+    font-weight: bold;
+    margin-top: 15px;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.table th {
     background-color: #f1e3c6;
     padding: 10px;
-    font-weight: bold;
+    text-align: left;
+}
+
+.table td {
+    padding: 10px;
+    border-top: 1px solid #ddd;
 }
 
 .btn {
@@ -42,15 +58,30 @@ body {
     color: white;
     padding: 6px 12px;
     border-radius: 5px;
-    text-align: center;
+    border: none;
 }
+
+.qty {
+    width: 50px;
+}
+
+.search {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+
+.red {color:red;}
+.green {color:green;}
+
 </style>
 """, unsafe_allow_html=True)
 
 # ---------- HEADER ----------
 st.markdown('<div class="header">Dynatrade Automotive LLC</div>', unsafe_allow_html=True)
 
-# ---------- CUSTOMER INFO ----------
+# ---------- CUSTOMER ----------
 col1, col2 = st.columns([3,1])
 
 with col1:
@@ -70,60 +101,89 @@ with col2:
     </div>
     """, unsafe_allow_html=True)
 
-# ---------- MAIN LAYOUT ----------
+# ---------- LAYOUT ----------
 left, right = st.columns([3,1])
 
-# ---------- LEFT SIDE ----------
+# ---------- SEARCH ----------
 with left:
+    st.markdown('<div class="section-title">Search Parts</div>', unsafe_allow_html=True)
 
-    st.markdown("### Search Parts")
+    search = st.text_input("", placeholder="Search by OE, Brand, Vehicle, Description")
 
-    search = st.text_input("Search by OE, Brand, Vehicle...")
+    if search:
+        filtered = df[
+            df.astype(str).apply(lambda row: search.lower() in row.str.lower().to_string(), axis=1)
+        ]
+    else:
+        filtered = df.head(20)
 
-    st.markdown("**Popular Search:** M24 Bolt | Hex Bolt | Daimler")
+    # ---------- TABLE ----------
+    table_html = """
+    <table class="table">
+    <tr>
+    <th>Brand</th>
+    <th>Vehicle</th>
+    <th>OE</th>
+    <th>Description</th>
+    <th>Stock</th>
+    <th>Price (AED)</th>
+    </tr>
+    """
 
-    # SAMPLE TABLE (will replace with Excel later)
-    data = pd.DataFrame({
-        "Brand": ["Sampa", "OEM"],
-        "Vehicle": ["DAIMLER AG", "DAIMLER AG"],
-        "OE": ["000000005503", "000000005503"],
-        "Description": ["HEXAGON HEAD BOLT", "HEXAGON HEAD BOLT"],
-        "Stock": [11, 12],
-        "Price (AED)": [13.72, 32.28]
-    })
+    for _, row in filtered.iterrows():
+        table_html += f"""
+        <tr>
+        <td>{row['Brand']}</td>
+        <td>{row['Vehicle']}</td>
+        <td>{row['OE']}</td>
+        <td>{row['Description']}</td>
+        <td class='green'>{row['Stock']}</td>
+        <td>{row['Price_AED']}</td>
+        </tr>
+        """
 
-    st.dataframe(data, use_container_width=True)
+    table_html += "</table>"
 
-    # ---------- CART ----------
-    st.markdown("### Cart")
+    st.markdown(table_html, unsafe_allow_html=True)
 
-    cart = pd.DataFrame({
-        "Brand": ["Sampa"],
-        "OE": ["000000005503"],
-        "Qty": [1],
-        "Price": [13.72],
-        "Total": [13.72]
-    })
+    # ---------- CART (STATIC FOR NOW) ----------
+    st.markdown('<div class="section-title">Cart</div>', unsafe_allow_html=True)
 
-    st.dataframe(cart, use_container_width=True)
+    st.markdown("""
+    <table class="table">
+    <tr>
+    <th>Brand</th>
+    <th>OE</th>
+    <th>Qty</th>
+    <th>Price</th>
+    <th>Total</th>
+    </tr>
+    <tr>
+    <td>Sampa</td>
+    <td>000000005503</td>
+    <td>1</td>
+    <td>13.72</td>
+    <td>13.72</td>
+    </tr>
+    </table>
+    """, unsafe_allow_html=True)
 
-    st.markdown("### Grand Total: 13.72 AED")
+    st.markdown("### **Grand Total: 13.72 AED**")
 
     colA, colB, colC = st.columns(3)
 
     with colA:
-        st.button("Download Cart (Excel)")
+        st.button("Download Excel")
 
     with colB:
-        st.button("Send via WhatsApp")
+        st.button("Send WhatsApp")
 
     with colC:
         st.button("Clear Cart")
 
-# ---------- RIGHT SIDE (NOTIFICATIONS) ----------
+# ---------- NOTIFICATIONS ----------
 with right:
-
-    st.markdown("### Notifications")
+    st.markdown('<div class="section-title">Notifications</div>', unsafe_allow_html=True)
 
     st.markdown("""
     <div class="card">
