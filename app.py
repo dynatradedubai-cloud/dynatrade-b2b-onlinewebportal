@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import urllib.parse
 
 st.set_page_config(layout="wide")
 
@@ -17,109 +16,101 @@ if "cart" not in st.session_state:
 
 # ---------- FUNCTIONS ----------
 def add_to_cart(item):
-    for cart_item in st.session_state.cart:
-        if cart_item["OE"] == item["OE"]:
-            cart_item["Qty"] += 1
+    for c in st.session_state.cart:
+        if c["OE"] == item["OE"]:
+            c["Qty"] += 1
             return
     item["Qty"] = 1
     st.session_state.cart.append(item)
 
-def remove_item(index):
-    st.session_state.cart.pop(index)
+def update_qty(index, change):
+    st.session_state.cart[index]["Qty"] += change
+    if st.session_state.cart[index]["Qty"] <= 0:
+        st.session_state.cart.pop(index)
 
-def generate_whatsapp_text(cart):
-    msg = "Hello, I would like to inquire:%0A%0A"
-    for item in cart:
-        msg += f"OE: {item['OE']} | Qty: {item['Qty']}%0A"
-    return msg
-
-# ---------- CSS (HIGH QUALITY UI) ----------
+# ---------- CSS ----------
 st.markdown("""
 <style>
 
-/* REMOVE STREAMLIT DEFAULT SPACE */
-.block-container {
-    padding-top: 1rem;
-    padding-bottom: 0rem;
+/* REMOVE DEFAULT SPACE */
+.block-container { padding-top: 0.5rem; }
+
+/* TOP NAV */
+.topnav {
+    background:#0b2c5f;
+    color:white;
+    padding:10px 20px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
 }
 
-/* HEADER */
-.header {
-    background: #0b2c5f;
-    color: white;
-    padding: 14px 20px;
-    font-size: 20px;
-    font-weight: 600;
+.search-top input {
+    width:400px;
+    padding:6px;
+    border-radius:5px;
+    border:none;
 }
 
-/* CARDS */
+/* CARD */
 .card {
-    background: white;
-    padding: 14px;
-    border-radius: 10px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-    font-size: 14px;
+    background:white;
+    padding:12px;
+    border-radius:10px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.08);
+    font-size:13px;
 }
 
-/* SECTION TITLE */
-.title {
-    font-size: 16px;
-    font-weight: 600;
-    margin: 12px 0 6px 0;
-}
+/* SECTION */
+.title { font-weight:600; margin:10px 0; }
 
-/* SEARCH */
-.search input {
-    width: 100%;
-    padding: 10px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-}
-
-/* TABLE HEADER */
-.table-header {
-    background: #f1e3c6;
-    padding: 8px;
-    font-weight: 600;
-    border-radius: 5px;
+/* TABLE HEADER STRIP */
+.header-strip {
+    background:#f1e3c6;
+    padding:8px;
+    font-weight:600;
+    font-size:13px;
 }
 
 /* ROW */
-.row {
-    padding: 6px 0;
-    border-bottom: 1px solid #eee;
-    font-size: 13px;
-}
+.row { padding:6px 0; border-bottom:1px solid #eee; font-size:13px; }
 
 /* BUTTON */
 .stButton button {
-    background-color: #0b2c5f;
-    color: white;
-    border-radius: 5px;
-    height: 32px;
-    padding: 0 12px;
-    font-size: 12px;
+    background:#0b2c5f;
+    color:white;
+    border-radius:4px;
+    height:30px;
+    font-size:12px;
 }
 
-/* GREEN STOCK */
-.green {
-    color: green;
-    font-weight: 600;
-}
+/* GREEN */
+.green { color:green; font-weight:600; }
 
-/* NOTIFICATIONS */
-.notify {
-    font-size: 13px;
-    line-height: 22px;
+/* QTY BTN */
+.qty-btn {
+    background:#ddd;
+    padding:2px 6px;
+    margin:0 3px;
+    cursor:pointer;
+    border-radius:3px;
 }
 
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- HEADER ----------
-st.markdown('<div class="header">Dynatrade Automotive LLC</div>', unsafe_allow_html=True)
+# ---------- TOP NAV ----------
+st.markdown("""
+<div class="topnav">
+    <div><b>Dynatrade Automotive LLC</b></div>
+    <div class="search-top">
+        <input placeholder="Search by OE, Brand, Vehicle...">
+    </div>
+    <div>🔔 EN | 👤 Mohamed Ali</div>
+</div>
+""", unsafe_allow_html=True)
 
-# ---------- TOP INFO ----------
+# ---------- CUSTOMER ----------
 c1, c2 = st.columns([3,1])
 
 with c1:
@@ -147,7 +138,7 @@ with left:
 
     st.markdown('<div class="title">Search Parts</div>', unsafe_allow_html=True)
 
-    search = st.text_input("", placeholder="Search by OE / Brand / Vehicle / Description")
+    search = st.text_input("", placeholder="Search parts...")
 
     if search:
         filtered = df[
@@ -156,29 +147,28 @@ with left:
     else:
         filtered = df.head(15)
 
-    # HEADER
-    cols = st.columns([1,1,1.2,2.5,1,1,1])
-    headers = ["Brand","Vehicle","OE","Description","Stock","Price",""]
+    # HEADER STRIP
+    cols = st.columns([1,1,1.2,2.5,1,1,1,1])
+    headers = ["Brand","Vehicle","OE","Description","MFG","Stock","Price",""]
     for col, h in zip(cols, headers):
-        col.markdown(f"<div class='table-header'>{h}</div>", unsafe_allow_html=True)
+        col.markdown(f"<div class='header-strip'>{h}</div>", unsafe_allow_html=True)
 
     # ROWS
     for i, row in filtered.iterrows():
-        cols = st.columns([1,1,1.2,2.5,1,1,1])
+        cols = st.columns([1,1,1.2,2.5,1,1,1,1])
 
         cols[0].write(row["Brand"])
         cols[1].write(row["Vehicle"])
         cols[2].write(row["OE"])
         cols[3].write(row["Description"])
-        cols[4].markdown(f"<span class='green'>{row['Stock']}</span>", unsafe_allow_html=True)
-        cols[5].write(row["Price_AED"])
+        cols[4].write(row["MFG"])
+        cols[5].markdown(f"<span class='green'>{row['Stock']}</span>", unsafe_allow_html=True)
+        cols[6].write(row["Price_AED"])
 
-        if cols[6].button("Add", key=f"add_{i}"):
+        if cols[7].button("Add", key=f"add_{i}"):
             add_to_cart({
                 "Brand": row["Brand"],
-                "Vehicle": row["Vehicle"],
                 "OE": row["OE"],
-                "Description": row["Description"],
                 "Price": row["Price_AED"]
             })
 
@@ -187,18 +177,28 @@ with left:
 
     total = 0
 
-    # CART HEADER
     cols = st.columns([1,1,1,1,1,1])
     headers = ["Brand","OE","Qty","Price","Total",""]
     for col, h in zip(cols, headers):
-        col.markdown(f"<div class='table-header'>{h}</div>", unsafe_allow_html=True)
+        col.markdown(f"<div class='header-strip'>{h}</div>", unsafe_allow_html=True)
 
     for idx, item in enumerate(st.session_state.cart):
         cols = st.columns([1,1,1,1,1,1])
 
         cols[0].write(item["Brand"])
         cols[1].write(item["OE"])
-        cols[2].write(item["Qty"])
+
+        qty_col = cols[2]
+        if qty_col.button("-", key=f"dec_{idx}"):
+            update_qty(idx, -1)
+            st.rerun()
+
+        qty_col.write(item["Qty"])
+
+        if qty_col.button("+", key=f"inc_{idx}"):
+            update_qty(idx, 1)
+            st.rerun()
+
         cols[3].write(item["Price"])
 
         item_total = item["Qty"] * item["Price"]
@@ -207,24 +207,24 @@ with left:
         cols[4].write(round(item_total,2))
 
         if cols[5].button("❌", key=f"rm_{idx}"):
-            remove_item(idx)
+            st.session_state.cart.pop(idx)
             st.rerun()
 
     st.markdown(f"### **Grand Total: {round(total,2)} AED**")
 
-    # ACTION BUTTONS
     a,b,c = st.columns(3)
 
     with a:
         if st.session_state.cart:
-            df_cart = pd.DataFrame(st.session_state.cart)
-            st.download_button("⬇ Download Excel", df_cart.to_csv(index=False), "cart.csv")
+            st.download_button("⬇ Excel", pd.DataFrame(st.session_state.cart).to_csv(index=False), "cart.csv")
 
     with b:
         if st.session_state.cart:
             phone = "971501234567"
-            text = generate_whatsapp_text(st.session_state.cart)
-            url = f"https://wa.me/{phone}?text={text}"
+            msg = "Inquiry:%0A"
+            for item in st.session_state.cart:
+                msg += f"OE:{item['OE']} Qty:{item['Qty']}%0A"
+            url = f"https://wa.me/{phone}?text={msg}"
             st.markdown(f"[💬 WhatsApp]({url})")
 
     with c:
@@ -234,11 +234,10 @@ with left:
 
 # ---------- RIGHT ----------
 with right:
-
     st.markdown('<div class="title">Notifications</div>', unsafe_allow_html=True)
 
     st.markdown("""
-    <div class="card notify">
+    <div class="card">
     🔴 Ramadan Offer 2025.pdf<br>
     🔴 Price Update - May.xlsx<br>
     🔵 New Campaign Available
