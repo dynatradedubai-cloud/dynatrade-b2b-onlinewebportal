@@ -1,4 +1,4 @@
-# app.py (replace your existing file with this)
+# app.py
 import streamlit as st
 import pandas as pd
 from io import BytesIO
@@ -77,7 +77,7 @@ def format_whatsapp_message(cart_items, customer_name="Mohamed Ali", cust_code="
 # -------------------------
 try:
     df = load_data()
-except Exception as e:
+except Exception:
     st.error("Failed to load sample_skus.csv. Check file exists and is valid CSV.")
     st.stop()
 
@@ -137,7 +137,6 @@ with col1:
 
     render_results_table(results)
 
-    # Provide reliable Python Add buttons for the first 10 visible rows
     visible = results.head(10)
     for i, row in visible.iterrows():
         cols = st.columns([3,2,1])
@@ -163,8 +162,7 @@ with col1:
                 if 'cart' not in st.session_state:
                     st.session_state.cart = []
                 st.session_state.cart.append(item)
-                # Do NOT call st.experimental_rerun() here unguarded; Streamlit will rerun after button click.
-                st.experimental_rerun()
+                # Streamlit will rerun automatically after button click
 
     st.markdown('</div>', unsafe_allow_html=True)
 
