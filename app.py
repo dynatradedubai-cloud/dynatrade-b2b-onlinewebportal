@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import urllib.parse
 
 st.set_page_config(layout="wide")
 
@@ -12,105 +13,102 @@ df = load_data()
 
 # ---------- SESSION ----------
 if "cart" not in st.session_state:
-    st.session_state.cart = []
+    st.session_state.cart = {}
 
 # ---------- FUNCTIONS ----------
-def add_to_cart(item):
-    for c in st.session_state.cart:
-        if c["OE"] == item["OE"]:
-            c["Qty"] += 1
-            return
-    item["Qty"] = 1
-    st.session_state.cart.append(item)
+def add_to_cart(oe, brand, price):
+    if oe in st.session_state.cart:
+        st.session_state.cart[oe]["qty"] += 1
+    else:
+        st.session_state.cart[oe] = {
+            "brand": brand,
+            "price": price,
+            "qty": 1
+        }
 
-def update_qty(index, change):
-    st.session_state.cart[index]["Qty"] += change
-    if st.session_state.cart[index]["Qty"] <= 0:
-        st.session_state.cart.pop(index)
+def update_qty(oe, change):
+    st.session_state.cart[oe]["qty"] += change
+    if st.session_state.cart[oe]["qty"] <= 0:
+        del st.session_state.cart[oe]
 
 # ---------- CSS ----------
 st.markdown("""
 <style>
 
-/* REMOVE DEFAULT SPACE */
-.block-container { padding-top: 0.5rem; }
+.block-container {padding-top:0.5rem;}
 
-/* TOP NAV */
-.topnav {
+.topbar {
     background:#0b2c5f;
     color:white;
     padding:10px 20px;
+    font-weight:600;
+}
+
+.searchbox {
+    width:100%;
+    padding:10px;
+    border-radius:6px;
+    border:1px solid #ccc;
+}
+
+.table {
+    width:100%;
+    border-collapse:collapse;
+    font-size:13px;
+}
+
+.table th {
+    background:#f1e3c6;
+    padding:8px;
+    text-align:left;
+}
+
+.table td {
+    padding:8px;
+    border-bottom:1px solid #eee;
+}
+
+.btn {
+    background:#0b2c5f;
+    color:white;
+    border:none;
+    padding:5px 10px;
+    border-radius:4px;
+    cursor:pointer;
+}
+
+.qty {
     display:flex;
-    justify-content:space-between;
+    gap:5px;
     align-items:center;
 }
 
-.search-top input {
-    width:400px;
-    padding:6px;
-    border-radius:5px;
-    border:none;
-}
-
-/* CARD */
-.card {
-    background:white;
-    padding:12px;
-    border-radius:10px;
-    box-shadow:0 2px 6px rgba(0,0,0,0.08);
-    font-size:13px;
-}
-
-/* SECTION */
-.title { font-weight:600; margin:10px 0; }
-
-/* TABLE HEADER STRIP */
-.header-strip {
-    background:#f1e3c6;
-    padding:8px;
-    font-weight:600;
-    font-size:13px;
-}
-
-/* ROW */
-.row { padding:6px 0; border-bottom:1px solid #eee; font-size:13px; }
-
-/* BUTTON */
-.stButton button {
-    background:#0b2c5f;
-    color:white;
-    border-radius:4px;
-    height:30px;
-    font-size:12px;
-}
-
-/* GREEN */
-.green { color:green; font-weight:600; }
-
-/* QTY BTN */
-.qty-btn {
-    background:#ddd;
+.qty button {
     padding:2px 6px;
-    margin:0 3px;
+    border:none;
+    background:#ddd;
     cursor:pointer;
     border-radius:3px;
 }
 
+.green {color:green; font-weight:600;}
+
+.card {
+    background:white;
+    padding:12px;
+    border-radius:10px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.1);
+    font-size:13px;
+}
+
+.title {margin-top:10px; font-weight:600;}
+
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- TOP NAV ----------
-st.markdown("""
-<div class="topnav">
-    <div><b>Dynatrade Automotive LLC</b></div>
-    <div class="search-top">
-        <input placeholder="Search by OE, Brand, Vehicle...">
-    </div>
-    <div>🔔 EN | 👤 Mohamed Ali</div>
-</div>
-""", unsafe_allow_html=True)
+# ---------- HEADER ----------
+st.markdown('<div class="topbar">Dynatrade Automotive LLC</div>', unsafe_allow_html=True)
 
-# ---------- CUSTOMER ----------
 c1, c2 = st.columns([3,1])
 
 with c1:
@@ -130,7 +128,6 @@ with c2:
     </div>
     """, unsafe_allow_html=True)
 
-# ---------- LAYOUT ----------
 left, right = st.columns([3,1])
 
 # ---------- LEFT ----------
@@ -147,89 +144,116 @@ with left:
     else:
         filtered = df.head(15)
 
-    # HEADER STRIP
-    cols = st.columns([1,1,1.2,2.5,1,1,1,1])
-    headers = ["Brand","Vehicle","OE","Description","MFG","Stock","Price",""]
-    for col, h in zip(cols, headers):
-        col.markdown(f"<div class='header-strip'>{h}</div>", unsafe_allow_html=True)
+    # ---------- TABLE ----------
+    html = """
+    <table class="table">
+    <tr>
+    <th>Brand</th>
+    <th>Vehicle</th>
+    <th>OE</th>
+    <th>Description</th>
+    <th>MFG</th>
+    <th>Stock</th>
+    <th>Price</th>
+    <th></th>
+    </tr>
+    """
 
-    # ROWS
     for i, row in filtered.iterrows():
-        cols = st.columns([1,1,1.2,2.5,1,1,1,1])
+        html += f"""
+        <tr>
+        <td>{row['Brand']}</td>
+        <td>{row['Vehicle']}</td>
+        <td>{row['OE']}</td>
+        <td>{row['Description']}</td>
+        <td>{row['MFG']}</td>
+        <td class="green">{row['Stock']}</td>
+        <td>{row['Price_AED']}</td>
+        <td></td>
+        </tr>
+        """
 
-        cols[0].write(row["Brand"])
-        cols[1].write(row["Vehicle"])
-        cols[2].write(row["OE"])
-        cols[3].write(row["Description"])
-        cols[4].write(row["MFG"])
-        cols[5].markdown(f"<span class='green'>{row['Stock']}</span>", unsafe_allow_html=True)
-        cols[6].write(row["Price_AED"])
+    html += "</table>"
 
-        if cols[7].button("Add", key=f"add_{i}"):
-            add_to_cart({
-                "Brand": row["Brand"],
-                "OE": row["OE"],
-                "Price": row["Price_AED"]
-            })
+    st.markdown(html, unsafe_allow_html=True)
+
+    # ACTION BUTTONS BELOW TABLE (logic fix)
+    for i, row in filtered.iterrows():
+        if st.button(f"Add {row['OE']}", key=f"add_{i}"):
+            add_to_cart(row["OE"], row["Brand"], row["Price_AED"])
 
     # ---------- CART ----------
     st.markdown('<div class="title">Cart</div>', unsafe_allow_html=True)
 
+    cart_html = """
+    <table class="table">
+    <tr>
+    <th>Brand</th>
+    <th>OE</th>
+    <th>Qty</th>
+    <th>Price</th>
+    <th>Total</th>
+    <th></th>
+    </tr>
+    """
+
     total = 0
 
-    cols = st.columns([1,1,1,1,1,1])
-    headers = ["Brand","OE","Qty","Price","Total",""]
-    for col, h in zip(cols, headers):
-        col.markdown(f"<div class='header-strip'>{h}</div>", unsafe_allow_html=True)
+    for oe, item in st.session_state.cart.items():
+        line_total = item["qty"] * item["price"]
+        total += line_total
 
-    for idx, item in enumerate(st.session_state.cart):
-        cols = st.columns([1,1,1,1,1,1])
+        cart_html += f"""
+        <tr>
+        <td>{item['brand']}</td>
+        <td>{oe}</td>
+        <td>{item['qty']}</td>
+        <td>{item['price']}</td>
+        <td>{round(line_total,2)}</td>
+        <td></td>
+        </tr>
+        """
 
-        cols[0].write(item["Brand"])
-        cols[1].write(item["OE"])
+    cart_html += "</table>"
 
-        qty_col = cols[2]
-        if qty_col.button("-", key=f"dec_{idx}"):
-            update_qty(idx, -1)
+    st.markdown(cart_html, unsafe_allow_html=True)
+
+    # QTY CONTROLS (aligned)
+    for oe, item in st.session_state.cart.items():
+        c1, c2, c3 = st.columns([1,1,1])
+        if c1.button("-", key=f"dec_{oe}"):
+            update_qty(oe, -1)
+            st.rerun()
+        c2.write(item["qty"])
+        if c3.button("+", key=f"inc_{oe}"):
+            update_qty(oe, 1)
             st.rerun()
 
-        qty_col.write(item["Qty"])
+    st.markdown(f"### Grand Total: {round(total,2)} AED")
 
-        if qty_col.button("+", key=f"inc_{idx}"):
-            update_qty(idx, 1)
-            st.rerun()
-
-        cols[3].write(item["Price"])
-
-        item_total = item["Qty"] * item["Price"]
-        total += item_total
-
-        cols[4].write(round(item_total,2))
-
-        if cols[5].button("❌", key=f"rm_{idx}"):
-            st.session_state.cart.pop(idx)
-            st.rerun()
-
-    st.markdown(f"### **Grand Total: {round(total,2)} AED**")
-
-    a,b,c = st.columns(3)
+    # ACTIONS
+    a, b, c = st.columns(3)
 
     with a:
         if st.session_state.cart:
-            st.download_button("⬇ Excel", pd.DataFrame(st.session_state.cart).to_csv(index=False), "cart.csv")
+            st.download_button(
+                "⬇ Excel",
+                pd.DataFrame(st.session_state.cart).to_csv(),
+                "cart.csv"
+            )
 
     with b:
         if st.session_state.cart:
             phone = "971501234567"
             msg = "Inquiry:%0A"
-            for item in st.session_state.cart:
-                msg += f"OE:{item['OE']} Qty:{item['Qty']}%0A"
+            for oe, item in st.session_state.cart.items():
+                msg += f"OE:{oe} Qty:{item['qty']}%0A"
             url = f"https://wa.me/{phone}?text={msg}"
             st.markdown(f"[💬 WhatsApp]({url})")
 
     with c:
-        if st.button("🗑 Clear"):
-            st.session_state.cart = []
+        if st.button("Clear Cart"):
+            st.session_state.cart = {}
             st.rerun()
 
 # ---------- RIGHT ----------
