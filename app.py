@@ -10,7 +10,24 @@ def load_data():
 
 df = load_data()
 
-# ---------- CUSTOM UI ----------
+# ---------- SESSION CART ----------
+if "cart" not in st.session_state:
+    st.session_state.cart = []
+
+# ---------- ADD TO CART FUNCTION ----------
+def add_to_cart(item):
+    for cart_item in st.session_state.cart:
+        if cart_item["OE"] == item["OE"]:
+            cart_item["Qty"] += 1
+            return
+    item["Qty"] = 1
+    st.session_state.cart.append(item)
+
+# ---------- REMOVE ----------
+def remove_item(index):
+    st.session_state.cart.pop(index)
+
+# ---------- CSS ----------
 st.markdown("""
 <style>
 body { background-color: #f5f7fb; font-family: Arial; }
@@ -36,45 +53,18 @@ body { background-color: #f5f7fb; font-family: Arial; }
     margin-top: 15px;
 }
 
-.table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 14px;
-}
-
 .table th {
     background-color: #f1e3c6;
-    padding: 10px;
+    padding: 8px;
     text-align: left;
 }
 
 .table td {
-    padding: 10px;
+    padding: 8px;
     border-top: 1px solid #ddd;
 }
 
-.btn {
-    background-color: #0b2c5f;
-    color: white;
-    padding: 6px 12px;
-    border-radius: 5px;
-    border: none;
-}
-
-.qty {
-    width: 50px;
-}
-
-.search {
-    width: 100%;
-    padding: 10px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-}
-
-.red {color:red;}
 .green {color:green;}
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -118,57 +108,61 @@ with left:
         filtered = df.head(20)
 
     # ---------- TABLE ----------
-    table_html = """
-    <table class="table">
+    st.markdown('<table class="table">', unsafe_allow_html=True)
+    st.markdown("""
     <tr>
     <th>Brand</th>
     <th>Vehicle</th>
     <th>OE</th>
     <th>Description</th>
     <th>Stock</th>
-    <th>Price (AED)</th>
-    </tr>
-    """
-
-    for _, row in filtered.iterrows():
-        table_html += f"""
-        <tr>
-        <td>{row['Brand']}</td>
-        <td>{row['Vehicle']}</td>
-        <td>{row['OE']}</td>
-        <td>{row['Description']}</td>
-        <td class='green'>{row['Stock']}</td>
-        <td>{row['Price_AED']}</td>
-        </tr>
-        """
-
-    table_html += "</table>"
-
-    st.markdown(table_html, unsafe_allow_html=True)
-
-    # ---------- CART (STATIC FOR NOW) ----------
-    st.markdown('<div class="section-title">Cart</div>', unsafe_allow_html=True)
-
-    st.markdown("""
-    <table class="table">
-    <tr>
-    <th>Brand</th>
-    <th>OE</th>
-    <th>Qty</th>
     <th>Price</th>
-    <th>Total</th>
+    <th>Action</th>
     </tr>
-    <tr>
-    <td>Sampa</td>
-    <td>000000005503</td>
-    <td>1</td>
-    <td>13.72</td>
-    <td>13.72</td>
-    </tr>
-    </table>
     """, unsafe_allow_html=True)
 
-    st.markdown("### **Grand Total: 13.72 AED**")
+    for i, row in filtered.iterrows():
+        cols = st.columns([1,1,1,2,1,1,1])
+
+        cols[0].write(row["Brand"])
+        cols[1].write(row["Vehicle"])
+        cols[2].write(row["OE"])
+        cols[3].write(row["Description"])
+        cols[4].markdown(f"<span class='green'>{row['Stock']}</span>", unsafe_allow_html=True)
+        cols[5].write(row["Price_AED"])
+
+        if cols[6].button("Add", key=f"add_{i}"):
+            add_to_cart({
+                "Brand": row["Brand"],
+                "Vehicle": row["Vehicle"],
+                "OE": row["OE"],
+                "Description": row["Description"],
+                "Price": row["Price_AED"]
+            })
+
+    # ---------- CART ----------
+    st.markdown('<div class="section-title">Cart</div>', unsafe_allow_html=True)
+
+    total = 0
+
+    for idx, item in enumerate(st.session_state.cart):
+        cols = st.columns([1,1,1,1,1,1])
+
+        cols[0].write(item["Brand"])
+        cols[1].write(item["OE"])
+        cols[2].write(item["Qty"])
+        cols[3].write(item["Price"])
+
+        item_total = item["Qty"] * item["Price"]
+        total += item_total
+
+        cols[4].write(round(item_total,2))
+
+        if cols[5].button("Remove", key=f"rm_{idx}"):
+            remove_item(idx)
+            st.rerun()
+
+    st.markdown(f"### **Grand Total: {round(total,2)} AED**")
 
     colA, colB, colC = st.columns(3)
 
@@ -179,7 +173,9 @@ with left:
         st.button("Send WhatsApp")
 
     with colC:
-        st.button("Clear Cart")
+        if st.button("Clear Cart"):
+            st.session_state.cart = []
+            st.rerun()
 
 # ---------- NOTIFICATIONS ----------
 with right:
