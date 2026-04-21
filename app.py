@@ -28,51 +28,101 @@ def remove_item(index):
     st.session_state.cart.pop(index)
 
 def generate_whatsapp_text(cart):
-    message = "Hello, I would like to inquire about the following parts:%0A%0A"
+    msg = "Hello, I would like to inquire:%0A%0A"
     for item in cart:
-        message += f"OE: {item['OE']} | Qty: {item['Qty']}%0A"
-    return message
+        msg += f"OE: {item['OE']} | Qty: {item['Qty']}%0A"
+    return msg
 
-def generate_excel(cart):
-    return pd.DataFrame(cart)
-
-# ---------- CSS ----------
+# ---------- CSS (HIGH QUALITY UI) ----------
 st.markdown("""
 <style>
-body { background-color: #f5f7fb; font-family: Arial; }
 
-.header {
-    background-color: #0b2c5f;
-    color: white;
-    padding: 14px;
-    font-size: 22px;
-    font-weight: bold;
+/* REMOVE STREAMLIT DEFAULT SPACE */
+.block-container {
+    padding-top: 1rem;
+    padding-bottom: 0rem;
 }
 
+/* HEADER */
+.header {
+    background: #0b2c5f;
+    color: white;
+    padding: 14px 20px;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+/* CARDS */
 .card {
     background: white;
-    padding: 15px;
+    padding: 14px;
     border-radius: 10px;
-    box-shadow: 0px 2px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    font-size: 14px;
 }
 
-.section-title {
-    font-size: 18px;
-    font-weight: bold;
-    margin-top: 15px;
+/* SECTION TITLE */
+.title {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 12px 0 6px 0;
 }
 
-.green {color:green;}
+/* SEARCH */
+.search input {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+
+/* TABLE HEADER */
+.table-header {
+    background: #f1e3c6;
+    padding: 8px;
+    font-weight: 600;
+    border-radius: 5px;
+}
+
+/* ROW */
+.row {
+    padding: 6px 0;
+    border-bottom: 1px solid #eee;
+    font-size: 13px;
+}
+
+/* BUTTON */
+.stButton button {
+    background-color: #0b2c5f;
+    color: white;
+    border-radius: 5px;
+    height: 32px;
+    padding: 0 12px;
+    font-size: 12px;
+}
+
+/* GREEN STOCK */
+.green {
+    color: green;
+    font-weight: 600;
+}
+
+/* NOTIFICATIONS */
+.notify {
+    font-size: 13px;
+    line-height: 22px;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
 # ---------- HEADER ----------
 st.markdown('<div class="header">Dynatrade Automotive LLC</div>', unsafe_allow_html=True)
 
-# ---------- CUSTOMER ----------
-col1, col2 = st.columns([3,1])
+# ---------- TOP INFO ----------
+c1, c2 = st.columns([3,1])
 
-with col1:
+with c1:
     st.markdown("""
     <div class="card">
     <b>Welcome, Mohamed Ali</b><br>
@@ -81,7 +131,7 @@ with col1:
     </div>
     """, unsafe_allow_html=True)
 
-with col2:
+with c2:
     st.markdown("""
     <div class="card">
     <b>Last Updated</b><br>
@@ -92,22 +142,29 @@ with col2:
 # ---------- LAYOUT ----------
 left, right = st.columns([3,1])
 
-# ---------- SEARCH ----------
+# ---------- LEFT ----------
 with left:
-    st.markdown('<div class="section-title">Search Parts</div>', unsafe_allow_html=True)
 
-    search = st.text_input("", placeholder="Search by OE, Brand, Vehicle, Description")
+    st.markdown('<div class="title">Search Parts</div>', unsafe_allow_html=True)
+
+    search = st.text_input("", placeholder="Search by OE / Brand / Vehicle / Description")
 
     if search:
         filtered = df[
-            df.astype(str).apply(lambda row: search.lower() in row.str.lower().to_string(), axis=1)
+            df.astype(str).apply(lambda r: search.lower() in r.str.lower().to_string(), axis=1)
         ]
     else:
-        filtered = df.head(20)
+        filtered = df.head(15)
 
-    # ---------- PARTS ----------
+    # HEADER
+    cols = st.columns([1,1,1.2,2.5,1,1,1])
+    headers = ["Brand","Vehicle","OE","Description","Stock","Price",""]
+    for col, h in zip(cols, headers):
+        col.markdown(f"<div class='table-header'>{h}</div>", unsafe_allow_html=True)
+
+    # ROWS
     for i, row in filtered.iterrows():
-        cols = st.columns([1,1,1,2,1,1,1])
+        cols = st.columns([1,1,1.2,2.5,1,1,1])
 
         cols[0].write(row["Brand"])
         cols[1].write(row["Vehicle"])
@@ -126,9 +183,15 @@ with left:
             })
 
     # ---------- CART ----------
-    st.markdown('<div class="section-title">Cart</div>', unsafe_allow_html=True)
+    st.markdown('<div class="title">Cart</div>', unsafe_allow_html=True)
 
     total = 0
+
+    # CART HEADER
+    cols = st.columns([1,1,1,1,1,1])
+    headers = ["Brand","OE","Qty","Price","Total",""]
+    for col, h in zip(cols, headers):
+        col.markdown(f"<div class='table-header'>{h}</div>", unsafe_allow_html=True)
 
     for idx, item in enumerate(st.session_state.cart):
         cols = st.columns([1,1,1,1,1,1])
@@ -143,51 +206,41 @@ with left:
 
         cols[4].write(round(item_total,2))
 
-        if cols[5].button("Remove", key=f"rm_{idx}"):
+        if cols[5].button("❌", key=f"rm_{idx}"):
             remove_item(idx)
             st.rerun()
 
     st.markdown(f"### **Grand Total: {round(total,2)} AED**")
 
-    # ---------- ACTIONS ----------
-    colA, colB, colC = st.columns(3)
+    # ACTION BUTTONS
+    a,b,c = st.columns(3)
 
-    # EXCEL DOWNLOAD
-    with colA:
+    with a:
         if st.session_state.cart:
-            excel_df = generate_excel(st.session_state.cart)
-            csv = excel_df.to_csv(index=False).encode('utf-8')
+            df_cart = pd.DataFrame(st.session_state.cart)
+            st.download_button("⬇ Download Excel", df_cart.to_csv(index=False), "cart.csv")
 
-            st.download_button(
-                label="Download Cart (Excel)",
-                data=csv,
-                file_name="cart.csv",
-                mime="text/csv"
-            )
-
-    # WHATSAPP
-    with colB:
+    with b:
         if st.session_state.cart:
-            phone_number = "971501234567"  # CHANGE THIS
+            phone = "971501234567"
             text = generate_whatsapp_text(st.session_state.cart)
-            url = f"https://wa.me/{phone_number}?text={text}"
+            url = f"https://wa.me/{phone}?text={text}"
+            st.markdown(f"[💬 WhatsApp]({url})")
 
-            st.markdown(f"[Send Inquiry on WhatsApp]({url})", unsafe_allow_html=True)
-
-    # CLEAR CART
-    with colC:
-        if st.button("Clear Cart"):
+    with c:
+        if st.button("🗑 Clear"):
             st.session_state.cart = []
             st.rerun()
 
-# ---------- NOTIFICATIONS ----------
+# ---------- RIGHT ----------
 with right:
-    st.markdown('<div class="section-title">Notifications</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="title">Notifications</div>', unsafe_allow_html=True)
 
     st.markdown("""
-    <div class="card">
-    🔴 Ramadan Offer 2025.pdf<br><br>
-    🔴 Price Update - May.xlsx<br><br>
+    <div class="card notify">
+    🔴 Ramadan Offer 2025.pdf<br>
+    🔴 Price Update - May.xlsx<br>
     🔵 New Campaign Available
     </div>
     """, unsafe_allow_html=True)
