@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import urllib.parse
 
 st.set_page_config(layout="wide")
 
@@ -10,11 +11,11 @@ def load_data():
 
 df = load_data()
 
-# ---------- SESSION CART ----------
+# ---------- SESSION ----------
 if "cart" not in st.session_state:
     st.session_state.cart = []
 
-# ---------- ADD TO CART FUNCTION ----------
+# ---------- FUNCTIONS ----------
 def add_to_cart(item):
     for cart_item in st.session_state.cart:
         if cart_item["OE"] == item["OE"]:
@@ -23,9 +24,17 @@ def add_to_cart(item):
     item["Qty"] = 1
     st.session_state.cart.append(item)
 
-# ---------- REMOVE ----------
 def remove_item(index):
     st.session_state.cart.pop(index)
+
+def generate_whatsapp_text(cart):
+    message = "Hello, I would like to inquire about the following parts:%0A%0A"
+    for item in cart:
+        message += f"OE: {item['OE']} | Qty: {item['Qty']}%0A"
+    return message
+
+def generate_excel(cart):
+    return pd.DataFrame(cart)
 
 # ---------- CSS ----------
 st.markdown("""
@@ -51,17 +60,6 @@ body { background-color: #f5f7fb; font-family: Arial; }
     font-size: 18px;
     font-weight: bold;
     margin-top: 15px;
-}
-
-.table th {
-    background-color: #f1e3c6;
-    padding: 8px;
-    text-align: left;
-}
-
-.table td {
-    padding: 8px;
-    border-top: 1px solid #ddd;
 }
 
 .green {color:green;}
@@ -107,20 +105,7 @@ with left:
     else:
         filtered = df.head(20)
 
-    # ---------- TABLE ----------
-    st.markdown('<table class="table">', unsafe_allow_html=True)
-    st.markdown("""
-    <tr>
-    <th>Brand</th>
-    <th>Vehicle</th>
-    <th>OE</th>
-    <th>Description</th>
-    <th>Stock</th>
-    <th>Price</th>
-    <th>Action</th>
-    </tr>
-    """, unsafe_allow_html=True)
-
+    # ---------- PARTS ----------
     for i, row in filtered.iterrows():
         cols = st.columns([1,1,1,2,1,1,1])
 
@@ -164,14 +149,32 @@ with left:
 
     st.markdown(f"### **Grand Total: {round(total,2)} AED**")
 
+    # ---------- ACTIONS ----------
     colA, colB, colC = st.columns(3)
 
+    # EXCEL DOWNLOAD
     with colA:
-        st.button("Download Excel")
+        if st.session_state.cart:
+            excel_df = generate_excel(st.session_state.cart)
+            csv = excel_df.to_csv(index=False).encode('utf-8')
 
+            st.download_button(
+                label="Download Cart (Excel)",
+                data=csv,
+                file_name="cart.csv",
+                mime="text/csv"
+            )
+
+    # WHATSAPP
     with colB:
-        st.button("Send WhatsApp")
+        if st.session_state.cart:
+            phone_number = "971501234567"  # CHANGE THIS
+            text = generate_whatsapp_text(st.session_state.cart)
+            url = f"https://wa.me/{phone_number}?text={text}"
 
+            st.markdown(f"[Send Inquiry on WhatsApp]({url})", unsafe_allow_html=True)
+
+    # CLEAR CART
     with colC:
         if st.button("Clear Cart"):
             st.session_state.cart = []
